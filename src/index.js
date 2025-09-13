@@ -7,12 +7,12 @@ const initializeFirebase = () => {
   if (!firebaseApp) {
     try {
       // Decode the base64 encoded private key
-      const privateKey = Buffer.from(process.env.FIREBASE_PRIVATE_KEY, 'base64').toString('utf8');
+      // const privateKey = Buffer.from(process.env.FIREBASE_PRIVATE_KEY, 'base64').toString('utf8');
       
       const serviceAccount = {
         type: "service_account",
         project_id: process.env.FIREBASE_PROJECT_ID,
-        private_key: privateKey.replace(/\\n/g, '\n'),
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         client_email: process.env.FIREBASE_CLIENT_EMAIL,
       };
 
