@@ -1,0 +1,8 @@
+{
+  "httpMethod": "POST",
+  "path": "/process-event",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"sessionId\":\"test-session-123\",\"agentName\":\"Analyst Agent\",\"event\":\"Created Dev Spec\",\"createdAt\":\"2025-01-15T10:30:00.000Z\"}"
+}

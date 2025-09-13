@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "process-events-stack"
+s3_bucket = ""  # Will be created automatically
+s3_prefix = "process-events-stack"
+region = "us-west-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "SQSQueueName=\"sdlc-cycle-events\" FirestoreCollectionName=\"sdlc-events\" FirebaseProjectId=\"sdlc-agents-2bb2d\" FirebaseClientEmail=\"firebase-adminsdk-fbsvc@sdlc-agents-2bb2d.iam.gserviceaccount.com\""
+resolve_s3 = true
+image_repositories = []

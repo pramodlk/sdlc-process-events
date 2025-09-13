@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Process Events Lambda Function with SQS and API Gateway integration
+
+Parameters:
+  SQSQueueName:
+    Type: String
+    Default: process-events-queue
+    Description: Name of the SQS queue for processing events
+  
+  FirestoreCollectionName:
+    Type: String
+    Default: sdlc-events
+    Description: Name of the Firestore collection to store events
+  
+  FirebaseProjectId:
+    Type: String
+    Description: Firebase Project ID for Firestore database
+  
+  FirebasePrivateKey:
+    Type: String
+    Description: Firebase private key for authentication (base64 encoded)
+    NoEcho: true
+  
+  FirebaseClientEmail:
+    Type: String
+    Description: Firebase client email for authentication
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs22.x
+    Environment:
+      Variables:
+        FIRESTORE_COLLECTION_NAME: !Ref FirestoreCollectionName
+        FIREBASE_PROJECT_ID: !Ref FirebaseProjectId
+        FIREBASE_PRIVATE_KEY: !Ref FirebasePrivateKey
+        FIREBASE_CLIENT_EMAIL: !Ref FirebaseClientEmail
+
+Resources:
+  # SQS Queue for processing events
+  ProcessEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref SQSQueueName
+      VisibilityTimeoutSeconds: 180
+      MessageRetentionPeriod: 1209600  # 14 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ProcessEventsDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  # Dead Letter Queue for failed messages
+  ProcessEventsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${SQSQueueName}-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # Lambda function for processing events
+  ProcessEventsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: process-events-function
+      CodeUri: src/
+      Handler: index.handler
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref ProcessEventsQueue
+      Events:
+        # SQS Event Source
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ProcessEventsQueue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+        # API Gateway Event Source
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /process-event
+            Method: post
+            RestApiId: !Ref ProcessEventsApi
+
+  # API Gateway
+  ProcessEventsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: process-events-api
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST, OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  # IAM Role for Lambda function
+  ProcessEventsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SQSPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt ProcessEventsQueue.Arn
+
+Outputs:
+  ProcessEventsApi:
+    Description: "API Gateway endpoint URL for Process Events function"
+    Value: !Sub "https://${ProcessEventsApi}.execute-api.${AWS::Region}.amazonaws.com/prod/process-event"
+  
+  ProcessEventsFunction:
+    Description: "Process Events Lambda Function ARN"
+    Value: !GetAtt ProcessEventsFunction.Arn
+  
+  ProcessEventsQueue:
+    Description: "SQS Queue URL"
+    Value: !Ref ProcessEventsQueue
+  
+  ProcessEventsDeadLetterQueue:
+    Description: "SQS Dead Letter Queue URL"
+    Value: !Ref ProcessEventsDeadLetterQueue

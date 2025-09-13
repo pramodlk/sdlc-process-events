@@ -1,0 +1,27 @@
+{
+  "name": "process-events-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to process events from SQS and API Gateway and store them in Firestore",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "sqs",
+    "api-gateway",
+    "firestore",
+    "sam"
+  ],
+  "author": "",
+  "license": "MIT"
+}
