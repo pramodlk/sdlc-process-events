@@ -145,9 +145,10 @@ exports.handler = async (event, context) => {
         } else {
           requestBody = event.body;
         }
-        
-        const result = await processEvent(requestBody);
-        results.push(result);
+        for (const event of requestBody) {
+          const result = await processEvent(event);
+          results.push(result);
+        }
         
         return {
           statusCode: 200,
@@ -159,7 +160,7 @@ exports.handler = async (event, context) => {
           },
           body: JSON.stringify({
             message: 'Event processed successfully',
-            result: result
+            result: results
           })
         };
       } catch (error) {
