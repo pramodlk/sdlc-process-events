@@ -27,6 +27,25 @@ Both SQS messages and API requests should follow this schema:
 }
 ```
 
+### Special Flush Event
+
+The system supports a special flush operation that deletes all events for a specific sessionId:
+
+```json
+{
+  "sessionId": "session-to-flush",
+  "agentName": "analysis-agent",
+  "event": "Flush",
+  "createdAt": "2025-01-15T10:30:00.000Z"
+}
+```
+
+When an event is received with:
+- `agentName` equals `"analysis-agent"` AND
+- `event` equals `"Flush"`
+
+The system will delete all documents in Firestore that match the specified `sessionId`, effectively clearing all events for that session.
+
 ## Firestore Storage
 
 Events are stored in Firestore with the following structure:
@@ -99,6 +118,7 @@ Events are stored in Firestore with the following structure:
 
 Send POST requests to the API Gateway endpoint:
 
+**Regular Event:**
 ```bash
 curl -X POST https://your-api-id.execute-api.region.amazonaws.com/prod/process-event \
   -H "Content-Type: application/json" \
@@ -110,10 +130,23 @@ curl -X POST https://your-api-id.execute-api.region.amazonaws.com/prod/process-e
   }'
 ```
 
+**Flush Event (deletes all events for sessionId):**
+```bash
+curl -X POST https://your-api-id.execute-api.region.amazonaws.com/prod/process-event \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "session-123",
+    "agentName": "analysis-agent",
+    "event": "Flush",
+    "createdAt": "2025-01-15T10:30:00.000Z"
+  }'
+```
+
 ### SQS Queue
 
 Send messages to the SQS queue using AWS SDK or AWS CLI:
 
+**Regular Event:**
 ```bash
 aws sqs send-message \
   --queue-url https://sqs.region.amazonaws.com/account/queue-name \
@@ -121,6 +154,18 @@ aws sqs send-message \
     "sessionId": "session-123",
     "agentName": "Coding Agent",
     "event": "Pulled the git Repo",
+    "createdAt": "2025-01-15T10:35:00.000Z"
+  }'
+```
+
+**Flush Event:**
+```bash
+aws sqs send-message \
+  --queue-url https://sqs.region.amazonaws.com/account/queue-name \
+  --message-body '{
+    "sessionId": "session-123",
+    "agentName": "analysis-agent",
+    "event": "Flush",
     "createdAt": "2025-01-15T10:35:00.000Z"
   }'
 ```

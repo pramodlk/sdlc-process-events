@@ -36,6 +36,52 @@ const getFirestore = () => {
 };
 
 /**
+ * Flush (delete) all events for a specific sessionId from Firestore
+ * @param {string} sessionId - Session ID to flush events for
+ * @returns {Object} Result object with success status and details
+ */
+const flushEventsForSession = async (sessionId) => {
+  try {
+    console.log(`Flush event detected for sessionId: ${sessionId}. Deleting all events.`);
+    
+    const db = getFirestore();
+    const collectionName = process.env.FIRESTORE_COLLECTION_NAME || 'sdlc-events';
+    const collection = db.collection(collectionName);
+    
+    // Query for existing document with the same sessionId
+    const querySnapshot = await collection.where('sessionId', '==', sessionId).get();
+    
+    if (!querySnapshot.empty) {
+      // Delete the document(s) with the matching sessionId
+      const batch = db.batch();
+      querySnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      
+      console.log(`Deleted ${querySnapshot.docs.length} document(s) for sessionId: ${sessionId}`);
+      return {
+        success: true,
+        message: `All events flushed successfully for sessionId: ${sessionId}`,
+        action: 'flush',
+        deletedDocuments: querySnapshot.docs.length
+      };
+    } else {
+      console.log(`No documents found to flush for sessionId: ${sessionId}`);
+      return {
+        success: true,
+        message: `No events found to flush for sessionId: ${sessionId}`,
+        action: 'flush',
+        deletedDocuments: 0
+      };
+    }
+  } catch (error) {
+    console.error('Error flushing events:', error);
+    throw error;
+  }
+};
+
+/**
  * Process a single event and store it in Firestore
  * @param {Object} eventData - The event data to process
  * @param {string} eventData.sessionId - Session ID
@@ -52,6 +98,12 @@ const processEvent = async (eventData) => {
       throw new Error('Missing required fields: sessionId, agentName, event, or createdAt');
     }
 
+    // Special handling for flush events from analysis-agent
+    if (eventData.agentName === 'analyst-agent' && eventData.event === 'Flush') {
+      return await flushEventsForSession(eventData.sessionId);
+    }
+
+    // Regular event processing
     const db = getFirestore();
     const collectionName = process.env.FIRESTORE_COLLECTION_NAME || 'sdlc-events';
     const collection = db.collection(collectionName);
@@ -90,7 +142,8 @@ const processEvent = async (eventData) => {
 
     return {
       success: true,
-      message: `Event processed successfully for sessionId: ${eventData.sessionId}`
+      message: `Event processed successfully for sessionId: ${eventData.sessionId}`,
+      action: 'add'
     };
   } catch (error) {
     console.error('Error processing event:', error);
